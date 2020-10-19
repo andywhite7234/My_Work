@@ -38,241 +38,92 @@ asset_class = 'CMBS'
 #Keyword list, this is specific to you asset class:
 #thanks to bill for finding this - if you '"return of the mack"' will return only tweets that have
 # "return of the mack" in order
-keyword = ['"credit card securitization"','"Lease securitization"','"auto loan securitization"','"Student loan securitization"',
-           '"Asset-backed securitization"','"asset-backed securitization"','"subprime auto"','"auto loan ABS"','"student loan ABS"','"car loan ABS"','"aircraft lease securitization"',
-           '"aircraft lease ABS"','"collateralized loan obligations"','"leveraged loans"','"CLOs"','"leveraged finance"']
-keyword = ['"residential mortgage backed securities"','"rmbs"','"residential mortgage-backed securities"','"prime jumbo"',
-           '"prime mortgages"']
-#notice that you can set a query search or a username search - you can modify however you want. I searched any metion of CMBS in the last 15 days
-tweetCriteria = (got.manager.
-                 TweetCriteria().
-                #setUsername("TreppWire")
-                 setQuerySearch('"auto loan securitization"')
-                 .setTopTweets(True)
-                 .setSince(str(date.today() - timedelta(days = 100)))
-                 .setUntil(str(date.today()))
-                 .setLang('en')
-                 .setMaxTweets(0)) # 0 retrieves all
+import tweepy
+import webbrowser
+import time
+import pandas as pd
+import datetime
+from time import gmtime, strftime
+import time
 
-tweet = got.manager.TweetManager.getTweets(tweetCriteria)
-inspect.getsource(got.manager)
-tweet_texts = [x.text for x in tweet]
-#how long are the tweets
-print(len(tweet_texts))
-#quick look at the tweets pulled:
-tweet_texts
-'''
+consumer_key = 'qsuSHdhBUlKPZxYzVgQyzLMgD'
+consumer_secret = 'iDW40Fo84F95hBtw9tXwkmY7W7See1IWfjJw3jpLXUM4zk8HSh'
 
-id (str)
-permalink (str)
-username (str)
-to (str)
-text (str)
-date (datetime) in UTC
-retweets (int)
-favorites (int)
-mentions (str)
+callback_uri = 'oob'
 
-TweetManager: A manager class to help getting tweets in Tweet's model.
-    getTweets (TwitterCriteria): Return the list of tweets retrieved by using an instance of TwitterCriteria.
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret,callback_uri)
+#this is like "logging" into the website.
 
-TwitterCriteria: A collection of search parameters to be used together with TweetManager.
-    setUsername (str or iterable): An optional specific username(s) from a twitter account (with or without "@").
-    setSince (str. "yyyy-mm-dd"): A lower bound date (UTC) to restrict search.
-    setUntil (str. "yyyy-mm-dd"): An upper bound date (not included) to restrict search.
-    setQuerySearch (str): A query text to be matched.
-    setTopTweets (bool): If True only the Top Tweets will be retrieved.
-    setNear(str): A reference location area from where tweets were generated.
-    setWithin (str): A distance radius from "near" location (e.g. 15mi).
-    setMaxTweets (int): The maximum number of tweets to be retrieved. If this number is unsetted or lower than 1 all possible tweets will be retrieved.
+redirect_url = auth.get_authorization_url()
+print(redirect_url)
+#this takes you to twitters authorization of the the application i made. And i recieved a pin: 7395396
+webbrowser.open(redirect_url)
+#user input that allows us to add a pin:
+user_pin_input = input("What's the Pin Value? ")
 
-'''
+auth.get_access_token(user_pin_input)
+print(auth.access_token,auth.access_token_secret)
+#print confirms that access token is the same - so just a check
 
-########################### the rest of this is to look at the other categories that twitter function can pull
-tweet_texts = [x.text for x in tweet]
-tweet_date = [x.date for x in tweet]
-tweet_hashtag = [x.hashtags for x in tweet]
-tweet_retweet = [x.retweets for x in tweet]
-tweet_permalink = [x.permalink for x in tweet]
-tweet_user = [x.username for x in tweet]
-tweet_favs = [x.favorites for x in tweet]
-tweet_mentions = [x.mentions for x in tweet]
-tweet_id = [x.id for x in tweet]
-tweet_to = [x.to for x in tweet]
-    
-
-
-##### Ok now we have a lot of info - will create a function to input to dataframe
-
-
-"""Functiondoes the following:
-    -takes the tweet form and converts to a dataframe
-    -Each dataframe has the specifications: text, date, hashtag, retweets, http link, username, favorites, metions, twitter_id, if tweet was @ someone
-    - Adds 4 blank columns that will need to be filled out in order to run the naive bayes model
-        -Analyst 1, 2, 3 assessment of polarity,
-        -A majority tie breaker
-        - if all three folks disagree the tiebreaker will go to Nuetral
-    - There will be a timestamp down to the second, so each run will be documented
-"""
-
-
-def tweet_to_df(tweet,group):
-    #tweet needs to be of GetOldTweets3.models.Tweet.Tweet class to work
-    tweet_meta = ['text','date','hashtags','retweets','permalink','username','favorites','mentions','id','to']
-
-    tweet_texts = [x.text for x in tweet]
-    df = pd.DataFrame({'text':tweet_texts})
-    #the following input columns into the pandas dataframe for later analysis
-    df['Sentiment_Analysis_1']=''
-    df['Sentiment_Analysis_2']=''
-    df['Sentiment_Analysis_3']=''
-    df['Majority']=''
-    df['date'] = [x.date for x in tweet]
-    df['hastag'] = [x.hashtags for x in tweet]
-    df['retweet'] = [x.retweets for x in tweet]
-    df['permalink'] = [x.permalink for x in tweet]
-    df['user'] = [x.username for x in tweet]
-    df['favs'] = [x.favorites for x in tweet]
-    df['mentions'] = [x.mentions for x in tweet]
-    df['id'] = [x.id for x in tweet]
-    df['to'] = [x.to for x in tweet]
-
-    file_path = "G:/Twitter_Sentiment/Tweet_data_dump/"
-    #file_path='C:/Users/andy_white/Desktop/Projects/Python/twitter_sentiment/data_dump/tweets_'        
-    time_stamp = strftime("%Y-%m-%d_%H.%M.%S", gmtime())
-    # df.ExcelWriter(open(file_path+time_stamp+'.xlsx','w'),options={'remove_timezone': True})
-    #write the dataframe to a CSV to analyze
-    df.to_csv(open(file_path+group+time_stamp+'.csv','w',encoding='utf-8'),index=False, encoding='utf-8',line_terminator='\n')
-    
-    return df
-
-cmbs_tweet_df=tweet_to_df(tweet,'commercial real estate')
+api = tweepy.API(auth)
+print(api.me().screen_name)
 
 
 '''
 THE MAIN FUCTION!!!!!! - SEARCH BY KEYWORD. THE 'keyword' VARIABLE NEEDS TO BE UPDATED WITH YOUR KEYWORDS 
 IF NOT THE FUNCTION BELOW WILL NOT RETURN TWEETS. 
 '''
+#i got rid of CLOs as a keword, it was pulling in too many garbage tweets
+keywords = ['"credit card securitization"','"Lease securitization"','"auto loan securitization"','"Student loan securitization"',
+           '"Asset-backed securitization"','"asset-backed securitization"','"subprime auto"','"auto loan ABS"','"student loan ABS"','"car loan ABS"','"aircraft lease securitization"',
+           '"aircraft lease ABS"','"collateralized loan obligations"','"leveraged loans"','"leveraged finance"',
+           '"residential mortgage backed securities"','"rmbs"','"residential mortgage-backed securities"','"prime jumbo"',
+           '"prime mortgages"','"commercial mortgage-backed"','"commercial mortgage backed"','"industrial real estate"','"RevPAR"','CMBX',
+           '"multifamily rents"','"retail rents"','"office rents"','"retail vacancy"','"retial vacancies"','"office vacancy"',
+           '"office vacancies"']
 
-#updated this to tweets to keyword search, also top_tweets parameter requires a true false
-def tweet_by_keyword(date_start,date_end,top_tweets):
-    
-    date_start = datetime.datetime.strptime(date_start,"%m/%d/%Y")  #converts user input into a date object
-    date_end = datetime.datetime.strptime(date_end,"%m/%d/%Y") #converts user input into a date object
-    #assigning variables to blank, so that they can be appended to lists
-    delta = timedelta(days=30)
-    tweet_texts=[]
-    tweet_date = []
-    tweet_hashtag = []
-    tweet_retweet=[]
-    tweet_permalink = []
-    tweet_user=[]
-    tweet_favs=[]
-    tweet_mentions=[]
-    tweet_id=[]
-    tweet_to=[]
-    '''
-    The following loop will run through all the twitter user handles provided and then get those tweets
-    It also gets the date, hashtag, etc and converts to a dataframe
-    '''
-    while date_end >=date_start:
-        new_start = date_end
-        new_start-=delta
-        new_end = date_end.strftime("%Y-%m-%d")
-        new_start = new_start.strftime("%Y-%m-%d")
-        
-        for row in keyword:
-            tweetCriteria = (got.manager.
-                     TweetCriteria().
-                    
-                    setQuerySearch(str(row))    
-                    .setTopTweets(top_tweets) 
-                    .setSince(str(new_start))
-                     .setUntil(str(new_end))
-                     .setLang('en')
-                     .setMaxTweets(0))
-            tweet = got.manager.TweetManager.getTweets(tweetCriteria)
-            tweet_texts.extend([x.text for x in tweet])
-            tweet_hashtag.extend([x.hashtags for x in tweet])
-            tweet_date.extend([x.date for x in tweet])
-            tweet_retweet.extend([x.retweets for x in tweet])
-            tweet_permalink.extend([x.permalink for x in tweet])
-            tweet_user.extend([x.username for x in tweet])
-            tweet_favs.extend([x.favorites for x in tweet])
-            tweet_mentions.extend([x.mentions for x in tweet])
-            tweet_id.extend([x.id for x in tweet])
-            tweet_to.extend([x.to for x in tweet])
-        date_end -= delta
-    df = pd.DataFrame({'Sentiment_Analysis_1':'','Garbage? 1=Yes,0=No':'',#'Sentiment_Analysis_2':'','Sentiment_Analysis_3':'','Majority':'',
-                       'text':tweet_texts,'hashtag':tweet_hashtag,'date':tweet_date,'retweet':tweet_retweet,'permalink':tweet_permalink,
-                       'user':tweet_user,'favorites':tweet_favs,'mentions':tweet_mentions,'tweet_id':tweet_id,'tweet_to':tweet_to})
-#    df['date']=df['date'].dt.tz_localize(None) #need this to save files to excel. important so you can edit in docshare
-    return df
+#####Lets give it a shot here:
+api = tweepy.API(auth)
+trends = api.trends_place(1)
 
+def tweepy_keyword_search(keyword):
+    tweets_list = []
+    for item in keywords:
+        #this will feed each keyword into the tweepy api - and then filter out retweets (so as not to bias sentiment)
+        search_hashtag = tweepy.Cursor(api.search, q=str(item+' -filter:retweets'), tweet_mode = "extended",lang="en").items(100)
+        for tweet in search_hashtag:
+            if 'retweeted_status' in tweet._json: 
+                full_text = tweet._json['retweeted_status']['full_text']
+            else:
+                full_text = tweet.full_text
+                            
+            tweets_list.append([tweet.user.screen_name,
+                                tweet.id,
+                                tweet.retweet_count, # What you are interested of
+                                tweet.favorite_count, # Maybe it is helpfull too
+                                full_text,
+                                tweet.created_at,
+                                tweet.entities
+                               ])
+    tweets_df = pd.DataFrame(tweets_list, columns = ["screen_name", "tweet_id",
+                                                  "no rt", 
+                                                  "no replies",
+                                                  "text",
+                                                  "created_at", 
+                                                  "entities"])
+    return tweets_df
 
-#test it out, remember True/False at the end needs to be updated, I recommend filtering for top tweets
-test=tweet_by_keyword("06/01/2019","10/08/2020",True)
-#the following list column names, the first couple rows in the df and then the first row
-list(test.columns.values)
-test.head()
-test.iloc[1]
-len(test)
-##pulling this number of tweets took 8 minutes 45 seconds (yikes!!!), but returned 8668 tweets! So about 1000 tweets = 1 minute
-rmbs_tweets= tweet_by_keyword("06/01/2019","07/15/2020",True)
-#cmbs_v2 = tweet_by_keyword("06/01/2019","06/20/2020",False)
-#clo = tweets_by_practice("CLO","06/01/2019","06/16/2020")
-#abs_auto = tweets_by_practice("ABS-Auto","06/01/2019","06/16/2020")
-cmbs.head()
-cmbs.iloc[1]
-len(cmbs)
-#len(abs_auto)
-
-#input the dataframe that returns the tweets, and input the number of tweets you want to sample for sentiment analysis. 
-#at this juncture i recommend 200. but feel free to do more if you're feeling wild
-def save_tweets(DF,tweet_sample_num,version):
-    file_path = "G:/Twitter_Sentiment/Tweet_data_dump/"
-    time_stamp = strftime("%Y-%m-%d_%H.%M.%S", gmtime())
+def save_tweets(DF,version):
+    file_path = "C:/Users/andy_white/OneDrive - S&P Global/Desktop/Projects/Python/twitter_sentiment/data_dump/"
+    time_stamp = strftime("%Y-%m-%d_%H", gmtime())
     #a fail safe in case python shuts down on you when running naive bayes:
-    DF.to_excel(file_path+asset_class+'_'+your_name+time_stamp+'.xlsx',index=False, encoding='utf-8')
-    file_path2 = "G:/Twitter_Sentiment/Sentiment_scores/"
-    #random sample of the dataframe to select n number of rows you specify
-    DF.sample(n=tweet_sample_num).to_excel(file_path2+asset_class+'_'+your_name+version+'.xlsx',index=False, encoding='utf-8')
-    return str(file_path2+asset_class+'_'+your_name+version+'.xlsx')
+    DF.to_excel(file_path+'tweets_'+time_stamp+'_'+version+'.xlsx',index=False, encoding='utf-8')
+    return str(file_path+'_'+version+'.xlsx')
 
-#note the return above will return a string of the file path so need to assign function to variable
-file_path = save_tweets(test,50,"_test")
-#if you want to resample and add more, be sure to update the version
 
-#ok now for the real thing
-#abs_autofile_path = save_tweets(abs_auto,200,"v1")
-#clo= save_tweets(clo,200,"v1")
-file_path = save_tweets(rmbs_tweets,500,'_rmbs_1000_v1')
-#there will be a few errors related to the length of the URL. I don't care about those errors
+tweets_df = tweepy_keyword_search(keywords)
+save_tweets(tweets_df,'')
 
-#that worked, now we need to incorporate the join and selection
-#file_path = save_tweets(test,50)
-
-#### if you haven't assigned tweets into the excel doc saved down, the following code will not work
-
-## first need to assign pos, nuetral, negativ in the xlsx file
-
-#####Now on to the NLP/ML tasks!!!
-''' Now go into the xlsx file and input sentiment scores:
-1 = positve
-0 = nuetral
--1 = negative
-'''
-
-#ok lets try to read in file now because we sampled without replacement, we don't need to remove the rows or anything
-#funky from or cmbs object:
-#may need to import matplotlib
-import matplotlib.pyplot as plt
-#had to update the file path to the new file
-cmbs_sample = pd.read_excel("G:/Twitter_Sentiment/Sentiment_scores/CMBS_Andy_White_v4.xlsx")
-cmbs_sample['Sentiment_Analysis_1'].value_counts().plot.bar()
-#list(cmbs_sample.columns.values)
-#cmbs_sample['Garbage? 1=Yes,0=No'].sum(skipna=True) #want to confirmt that the garbage tweets will be dropped. We have 536 tweets classified as garbage
-cmbs_sample = cmbs_sample[cmbs_sample['Garbage? 1=Yes,0=No']!=1] #confirmed that dropped the tweets taht may confuse our sentiment classifier
 #now comes the NLP/Text Mining aspect, lets start with an example
 test_sent = "It's crazy. This is the U.S.A. and I spent $12.99 on a 1,000 pound dog that won't play fetch!!! It's a dog-eat-dog world #fun"
 import nltk
@@ -744,6 +595,235 @@ fig.show()
 ##############################################################################################
 ########################################stop here #############################################
 ################################################################################################
+keyword = ['"credit card securitization"','"Lease securitization"','"auto loan securitization"','"Student loan securitization"',
+           '"Asset-backed securitization"','"asset-backed securitization"','"subprime auto"','"auto loan ABS"','"student loan ABS"','"car loan ABS"','"aircraft lease securitization"',
+           '"aircraft lease ABS"','"collateralized loan obligations"','"leveraged loans"','"CLOs"','"leveraged finance"']
+keyword = ['"residential mortgage backed securities"','"rmbs"','"residential mortgage-backed securities"','"prime jumbo"',
+           '"prime mortgages"']
+#notice that you can set a query search or a username search - you can modify however you want. I searched any metion of CMBS in the last 15 days
+tweetCriteria = (got.manager.
+                 TweetCriteria().
+                #setUsername("TreppWire")
+                 setQuerySearch('"auto loan securitization"')
+                 .setTopTweets(True)
+                 .setSince(str(date.today() - timedelta(days = 100)))
+                 .setUntil(str(date.today()))
+                 .setLang('en')
+                 .setMaxTweets(0)) # 0 retrieves all
+
+tweet = got.manager.TweetManager.getTweets(tweetCriteria)
+inspect.getsource(got.manager)
+tweet_texts = [x.text for x in tweet]
+#how long are the tweets
+print(len(tweet_texts))
+#quick look at the tweets pulled:
+tweet_texts
+'''
+
+id (str)
+permalink (str)
+username (str)
+to (str)
+text (str)
+date (datetime) in UTC
+retweets (int)
+favorites (int)
+mentions (str)
+
+TweetManager: A manager class to help getting tweets in Tweet's model.
+    getTweets (TwitterCriteria): Return the list of tweets retrieved by using an instance of TwitterCriteria.
+
+TwitterCriteria: A collection of search parameters to be used together with TweetManager.
+    setUsername (str or iterable): An optional specific username(s) from a twitter account (with or without "@").
+    setSince (str. "yyyy-mm-dd"): A lower bound date (UTC) to restrict search.
+    setUntil (str. "yyyy-mm-dd"): An upper bound date (not included) to restrict search.
+    setQuerySearch (str): A query text to be matched.
+    setTopTweets (bool): If True only the Top Tweets will be retrieved.
+    setNear(str): A reference location area from where tweets were generated.
+    setWithin (str): A distance radius from "near" location (e.g. 15mi).
+    setMaxTweets (int): The maximum number of tweets to be retrieved. If this number is unsetted or lower than 1 all possible tweets will be retrieved.
+
+'''
+
+########################### the rest of this is to look at the other categories that twitter function can pull
+tweet_texts = [x.text for x in tweet]
+tweet_date = [x.date for x in tweet]
+tweet_hashtag = [x.hashtags for x in tweet]
+tweet_retweet = [x.retweets for x in tweet]
+tweet_permalink = [x.permalink for x in tweet]
+tweet_user = [x.username for x in tweet]
+tweet_favs = [x.favorites for x in tweet]
+tweet_mentions = [x.mentions for x in tweet]
+tweet_id = [x.id for x in tweet]
+tweet_to = [x.to for x in tweet]
+    
+
+
+##### Ok now we have a lot of info - will create a function to input to dataframe
+
+
+"""Functiondoes the following:
+    -takes the tweet form and converts to a dataframe
+    -Each dataframe has the specifications: text, date, hashtag, retweets, http link, username, favorites, metions, twitter_id, if tweet was @ someone
+    - Adds 4 blank columns that will need to be filled out in order to run the naive bayes model
+        -Analyst 1, 2, 3 assessment of polarity,
+        -A majority tie breaker
+        - if all three folks disagree the tiebreaker will go to Nuetral
+    - There will be a timestamp down to the second, so each run will be documented
+"""
+
+
+def tweet_to_df(tweet,group):
+    #tweet needs to be of GetOldTweets3.models.Tweet.Tweet class to work
+    tweet_meta = ['text','date','hashtags','retweets','permalink','username','favorites','mentions','id','to']
+
+    tweet_texts = [x.text for x in tweet]
+    df = pd.DataFrame({'text':tweet_texts})
+    #the following input columns into the pandas dataframe for later analysis
+    df['Sentiment_Analysis_1']=''
+    df['Sentiment_Analysis_2']=''
+    df['Sentiment_Analysis_3']=''
+    df['Majority']=''
+    df['date'] = [x.date for x in tweet]
+    df['hastag'] = [x.hashtags for x in tweet]
+    df['retweet'] = [x.retweets for x in tweet]
+    df['permalink'] = [x.permalink for x in tweet]
+    df['user'] = [x.username for x in tweet]
+    df['favs'] = [x.favorites for x in tweet]
+    df['mentions'] = [x.mentions for x in tweet]
+    df['id'] = [x.id for x in tweet]
+    df['to'] = [x.to for x in tweet]
+
+    file_path = "G:/Twitter_Sentiment/Tweet_data_dump/"
+    #file_path='C:/Users/andy_white/Desktop/Projects/Python/twitter_sentiment/data_dump/tweets_'        
+    time_stamp = strftime("%Y-%m-%d_%H.%M.%S", gmtime())
+    # df.ExcelWriter(open(file_path+time_stamp+'.xlsx','w'),options={'remove_timezone': True})
+    #write the dataframe to a CSV to analyze
+    df.to_csv(open(file_path+group+time_stamp+'.csv','w',encoding='utf-8'),index=False, encoding='utf-8',line_terminator='\n')
+    
+    return df
+
+cmbs_tweet_df=tweet_to_df(tweet,'commercial real estate')
+# old code related to getoldtweets3 libarry:
+#updated this to tweets to keyword search, also top_tweets parameter requires a true false
+def tweet_by_keyword(date_start,date_end,top_tweets):
+    
+    date_start = datetime.datetime.strptime(date_start,"%m/%d/%Y")  #converts user input into a date object
+    date_end = datetime.datetime.strptime(date_end,"%m/%d/%Y") #converts user input into a date object
+    #assigning variables to blank, so that they can be appended to lists
+    delta = timedelta(days=30)
+    tweet_texts=[]
+    tweet_date = []
+    tweet_hashtag = []
+    tweet_retweet=[]
+    tweet_permalink = []
+    tweet_user=[]
+    tweet_favs=[]
+    tweet_mentions=[]
+    tweet_id=[]
+    tweet_to=[]
+    '''
+    The following loop will run through all the twitter user handles provided and then get those tweets
+    It also gets the date, hashtag, etc and converts to a dataframe
+    '''
+    while date_end >=date_start:
+        new_start = date_end
+        new_start-=delta
+        new_end = date_end.strftime("%Y-%m-%d")
+        new_start = new_start.strftime("%Y-%m-%d")
+        
+        for row in keyword:
+            tweetCriteria = (got.manager.
+                     TweetCriteria().
+                    
+                    setQuerySearch(str(row))    
+                    .setTopTweets(top_tweets) 
+                    .setSince(str(new_start))
+                     .setUntil(str(new_end))
+                     .setLang('en')
+                     .setMaxTweets(0))
+            tweet = got.manager.TweetManager.getTweets(tweetCriteria)
+            tweet_texts.extend([x.text for x in tweet])
+            tweet_hashtag.extend([x.hashtags for x in tweet])
+            tweet_date.extend([x.date for x in tweet])
+            tweet_retweet.extend([x.retweets for x in tweet])
+            tweet_permalink.extend([x.permalink for x in tweet])
+            tweet_user.extend([x.username for x in tweet])
+            tweet_favs.extend([x.favorites for x in tweet])
+            tweet_mentions.extend([x.mentions for x in tweet])
+            tweet_id.extend([x.id for x in tweet])
+            tweet_to.extend([x.to for x in tweet])
+        date_end -= delta
+    df = pd.DataFrame({'Sentiment_Analysis_1':'','Garbage? 1=Yes,0=No':'',#'Sentiment_Analysis_2':'','Sentiment_Analysis_3':'','Majority':'',
+                       'text':tweet_texts,'hashtag':tweet_hashtag,'date':tweet_date,'retweet':tweet_retweet,'permalink':tweet_permalink,
+                       'user':tweet_user,'favorites':tweet_favs,'mentions':tweet_mentions,'tweet_id':tweet_id,'tweet_to':tweet_to})
+#    df['date']=df['date'].dt.tz_localize(None) #need this to save files to excel. important so you can edit in docshare
+    return df
+
+
+#test it out, remember True/False at the end needs to be updated, I recommend filtering for top tweets
+test=tweet_by_keyword("06/01/2019","10/08/2020",True)
+#the following list column names, the first couple rows in the df and then the first row
+list(test.columns.values)
+test.head()
+test.iloc[1]
+len(test)
+##pulling this number of tweets took 8 minutes 45 seconds (yikes!!!), but returned 8668 tweets! So about 1000 tweets = 1 minute
+rmbs_tweets= tweet_by_keyword("06/01/2019","07/15/2020",True)
+#cmbs_v2 = tweet_by_keyword("06/01/2019","06/20/2020",False)
+#clo = tweets_by_practice("CLO","06/01/2019","06/16/2020")
+#abs_auto = tweets_by_practice("ABS-Auto","06/01/2019","06/16/2020")
+cmbs.head()
+cmbs.iloc[1]
+len(cmbs)
+#len(abs_auto)
+
+#input the dataframe that returns the tweets, and input the number of tweets you want to sample for sentiment analysis. 
+#at this juncture i recommend 200. but feel free to do more if you're feeling wild
+def save_tweets(DF,tweet_sample_num,version):
+    file_path = "G:/Twitter_Sentiment/Tweet_data_dump/"
+    time_stamp = strftime("%Y-%m-%d_%H.%M.%S", gmtime())
+    #a fail safe in case python shuts down on you when running naive bayes:
+    DF.to_excel(file_path+asset_class+'_'+your_name+time_stamp+'.xlsx',index=False, encoding='utf-8')
+    file_path2 = "G:/Twitter_Sentiment/Sentiment_scores/"
+    #random sample of the dataframe to select n number of rows you specify
+    DF.sample(n=tweet_sample_num).to_excel(file_path2+asset_class+'_'+your_name+version+'.xlsx',index=False, encoding='utf-8')
+    return str(file_path2+asset_class+'_'+your_name+version+'.xlsx')
+
+#note the return above will return a string of the file path so need to assign function to variable
+file_path = save_tweets(test,50,"_test")
+#if you want to resample and add more, be sure to update the version
+
+#ok now for the real thing
+#abs_autofile_path = save_tweets(abs_auto,200,"v1")
+#clo= save_tweets(clo,200,"v1")
+file_path = save_tweets(rmbs_tweets,500,'_rmbs_1000_v1')
+#there will be a few errors related to the length of the URL. I don't care about those errors
+
+#that worked, now we need to incorporate the join and selection
+#file_path = save_tweets(test,50)
+
+#### if you haven't assigned tweets into the excel doc saved down, the following code will not work
+
+## first need to assign pos, nuetral, negativ in the xlsx file
+
+#####Now on to the NLP/ML tasks!!!
+''' Now go into the xlsx file and input sentiment scores:
+1 = positve
+0 = nuetral
+-1 = negative
+'''
+
+#ok lets try to read in file now because we sampled without replacement, we don't need to remove the rows or anything
+#funky from or cmbs object:
+#may need to import matplotlib
+import matplotlib.pyplot as plt
+#had to update the file path to the new file
+cmbs_sample = pd.read_excel("G:/Twitter_Sentiment/Sentiment_scores/CMBS_Andy_White_v4.xlsx")
+cmbs_sample['Sentiment_Analysis_1'].value_counts().plot.bar()
+#list(cmbs_sample.columns.values)
+#cmbs_sample['Garbage? 1=Yes,0=No'].sum(skipna=True) #want to confirmt that the garbage tweets will be dropped. We have 536 tweets classified as garbage
+cmbs_sample = cmbs_sample[cmbs_sample['Garbage? 1=Yes,0=No']!=1] #confirmed that dropped the tweets taht may confuse our sentiment classifier
 #Quick test on our scoring, 
 
 #y=vectTFIDFOrigDF_labels['polarity'].values
